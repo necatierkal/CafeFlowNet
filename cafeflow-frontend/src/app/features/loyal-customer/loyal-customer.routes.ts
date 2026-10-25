@@ -20,5 +20,10 @@ export const LOYAL_CUSTOMER_ROUTES: Routes = [
     path: 'history',
     loadComponent: () => import('./history/order-history.component')
       .then(m => m.OrderHistoryComponent)
+  },
+  {
+    path: 'profile',
+    loadComponent: () => import('./profile/profile.component')
+      .then(m => m.CustomerProfileComponent)
   }
 ];

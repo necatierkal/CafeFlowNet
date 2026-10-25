@@ -31,6 +31,10 @@ namespace CafeFlow.API.Models
 
         public bool IsActive { get; set; } = true;
 
+        public bool MustChangePassword { get; set; } = false;
+
+        public DateTime? LastLoginAt { get; set; }
+
         // Tracks who added this loyal customer (the admin), null for Admin accounts
         public Guid? AddedByAdminId { get; set; }
 

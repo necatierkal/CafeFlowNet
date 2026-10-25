@@ -16,17 +16,16 @@ namespace CafeFlow.API.Controllers
             _menuService = menuService;
         }
 
-        // Public — no auth required. Guests and loyal customers both use this.
+        // Public — no auth required. Guests and customers both use this.
         [HttpGet("categories")]
         [AllowAnonymous]
         public async Task<ActionResult<List<MenuCategoryDto>>> GetMenu()
         {
-            // Public callers only see available items
             var menu = await _menuService.GetFullMenuAsync(includeUnavailable: false);
             return Ok(menu);
         }
 
-        // Admin — sees unavailable items too, so they can re-enable them
+        // Admin — sees unavailable items too
         [HttpGet("categories/admin")]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<List<MenuCategoryDto>>> GetMenuForAdmin()
@@ -37,29 +36,84 @@ namespace CafeFlow.API.Controllers
 
         [HttpPost("categories")]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<MenuCategoryDto>> CreateCategory(CreateMenuCategoryDto dto)
+        public async Task<ActionResult<MenuCategoryDto>> CreateCategory([FromBody] CreateMenuCategoryDto dto)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             var category = await _menuService.CreateCategoryAsync(dto);
             return CreatedAtAction(nameof(GetMenu), category);
         }
 
-        [HttpPost("items")]
+        [HttpPut("categories/{id:int}")]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<MenuItemDto>> CreateItem(CreateMenuItemDto dto)
+        public async Task<ActionResult<MenuCategoryDto>> UpdateCategory(int id, [FromBody] UpdateMenuCategoryDto dto)
         {
-            var item = await _menuService.CreateItemAsync(dto);
-            return CreatedAtAction(nameof(GetMenu), item);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var category = await _menuService.UpdateCategoryAsync(id, dto);
+            if (category is null) return NotFound(new { message = "Kategori bulunamadı." });
+
+            return Ok(category);
         }
 
-        // This is the endpoint owners use to change a price quickly.
-        // Send only the fields you want to change — e.g. { "price": 7.50 }
+        [HttpDelete("categories/{id:int}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteCategory(int id)
+        {
+            var deleted = await _menuService.DeleteCategoryAsync(id);
+            if (!deleted) return NotFound(new { message = "Kategori bulunamadı." });
+
+            return NoContent();
+        }
+
+        [HttpGet("items/{id:int}")]
+        [AllowAnonymous]
+        public async Task<ActionResult<MenuItemDto>> GetItem(int id)
+        {
+            var item = await _menuService.GetItemByIdAsync(id);
+            if (item is null) return NotFound(new { message = "Ürün bulunamadı." });
+
+            return Ok(item);
+        }
+
+        [HttpPost("items")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<MenuItemDto>> CreateItem([FromBody] CreateMenuItemDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            try
+            {
+                var item = await _menuService.CreateItemAsync(dto);
+                return CreatedAtAction(nameof(GetItem), new { id = item.Id }, item);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         [HttpPut("items/{id:int}")]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<MenuItemDto>> UpdateItem(int id, UpdateMenuItemDto dto)
+        public async Task<ActionResult<MenuItemDto>> UpdateItem(int id, [FromBody] UpdateMenuItemDto dto)
         {
-            var item = await _menuService.UpdateItemAsync(id, dto);
-            if (item is null) return NotFound();
-            return Ok(item);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            try
+            {
+                var item = await _menuService.UpdateItemAsync(id, dto);
+                if (item is null) return NotFound(new { message = "Ürün bulunamadı." });
+
+                return Ok(item);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpDelete("items/{id:int}")]
@@ -67,7 +121,8 @@ namespace CafeFlow.API.Controllers
         public async Task<IActionResult> DeleteItem(int id)
         {
             var deleted = await _menuService.DeleteItemAsync(id);
-            if (!deleted) return NotFound();
+            if (!deleted) return NotFound(new { message = "Ürün bulunamadı." });
+
             return NoContent();
         }
     }

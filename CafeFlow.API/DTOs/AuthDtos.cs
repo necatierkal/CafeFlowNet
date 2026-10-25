@@ -5,10 +5,25 @@ namespace CafeFlow.API.DTOs
 {
     public class LoginDto
     {
-        [Required, EmailAddress]
+        [Required(ErrorMessage = "E-posta adresi zorunludur."), EmailAddress(ErrorMessage = "Geçersiz e-posta biçimi.")]
         public string Email { get; set; } = string.Empty;
 
-        [Required]
+        [Required(ErrorMessage = "Şifre zorunludur.")]
+        public string Password { get; set; } = string.Empty;
+    }
+
+    public class RegisterDto
+    {
+        [Required(ErrorMessage = "Ad ve soyad zorunludur."), MinLength(2), MaxLength(100)]
+        public string FullName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "E-posta adresi zorunludur."), EmailAddress(ErrorMessage = "Geçersiz e-posta biçimi.")]
+        public string Email { get; set; } = string.Empty;
+
+        [MaxLength(20)]
+        public string? PhoneNumber { get; set; }
+
+        [Required(ErrorMessage = "Şifre zorunludur."), MinLength(6, ErrorMessage = "Şifre en az 6 karakter olmalıdır.")]
         public string Password { get; set; } = string.Empty;
     }
 
@@ -33,22 +48,47 @@ namespace CafeFlow.API.DTOs
         public string FullName { get; set; } = string.Empty;
         public string? PhoneNumber { get; set; }
         public UserRole Role { get; set; }
+        public bool IsActive { get; set; } = true;
+        public bool MustChangePassword { get; set; } = false;
+        public DateTime? LastLoginAt { get; set; }
         public DateTime CreatedAt { get; set; }
+    }
+
+    public class UpdateProfileDto
+    {
+        [Required(ErrorMessage = "Ad ve soyad zorunludur."), MinLength(2), MaxLength(100)]
+        public string FullName { get; set; } = string.Empty;
+
+        [MaxLength(20)]
+        public string? PhoneNumber { get; set; }
+    }
+
+    public class ChangePasswordDto
+    {
+        [Required(ErrorMessage = "Mevcut şifre zorunludur.")]
+        public string CurrentPassword { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Yeni şifre zorunludur."), MinLength(6, ErrorMessage = "Yeni şifre en az 6 karakter olmalıdır.")]
+        public string NewPassword { get; set; } = string.Empty;
     }
 
     public class CreateLoyalCustomerDto
     {
-        [Required, EmailAddress]
+        [Required(ErrorMessage = "E-posta adresi zorunludur."), EmailAddress]
         public string Email { get; set; } = string.Empty;
 
-        [Required, MinLength(2), MaxLength(100)]
+        [Required(ErrorMessage = "Ad ve soyad zorunludur."), MinLength(2), MaxLength(100)]
         public string FullName { get; set; } = string.Empty;
 
         [MaxLength(20)]
         public string? PhoneNumber { get; set; }
 
-        // Temporary password — customer should change it on first login
-        [Required, MinLength(6)]
+        [Required(ErrorMessage = "Geçici şifre zorunludur."), MinLength(6, ErrorMessage = "Şifre en az 6 karakter olmalıdır.")]
         public string TemporaryPassword { get; set; } = string.Empty;
+    }
+
+    public class ToggleUserStatusDto
+    {
+        public bool IsActive { get; set; }
     }
 }

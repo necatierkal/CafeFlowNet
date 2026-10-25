@@ -19,29 +19,51 @@ namespace CafeFlow.API.Controllers
         }
 
         [HttpGet("loyal")]
-        public async Task<ActionResult<List<UserDto>>> GetLoyalCustomers()
+        public async Task<ActionResult<List<UserDto>>> GetLoyalCustomers([FromQuery] string? search)
         {
-            var customers = await _loyaltyService.GetLoyalCustomersAsync();
+            var customers = await _loyaltyService.GetLoyalCustomersAsync(search);
             return Ok(customers);
         }
 
-        [HttpPost("loyal")]
-        public async Task<ActionResult<UserDto>> AddLoyalCustomer(CreateLoyalCustomerDto dto)
+        [HttpGet("loyal/{id:guid}")]
+        public async Task<ActionResult<UserDto>> GetCustomerById(Guid id)
         {
+            var customer = await _loyaltyService.GetCustomerByIdAsync(id);
+            if (customer is null) return NotFound(new { message = "Müşteri bulunamadı." });
+
+            return Ok(customer);
+        }
+
+        [HttpPost("loyal")]
+        public async Task<ActionResult<UserDto>> AddLoyalCustomer([FromBody] CreateLoyalCustomerDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             var adminId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
             var customer = await _loyaltyService.AddLoyalCustomerAsync(adminId, dto);
 
             if (customer is null)
-                return Conflict(new { message = "A user with this email already exists." });
+                return Conflict(new { message = "Bu e-posta adresiyle kayıtlı bir müşteri zaten bulunmaktadır." });
 
-            return CreatedAtAction(nameof(GetLoyalCustomers), customer);
+            return CreatedAtAction(nameof(GetCustomerById), new { id = customer.Id }, customer);
+        }
+
+        [HttpPut("loyal/{id:guid}/status")]
+        public async Task<ActionResult<UserDto>> ToggleCustomerStatus(Guid id, [FromBody] ToggleUserStatusDto dto)
+        {
+            var updated = await _loyaltyService.ToggleCustomerStatusAsync(id, dto.IsActive);
+            if (updated is null) return NotFound(new { message = "Müşteri bulunamadı." });
+
+            return Ok(updated);
         }
 
         [HttpDelete("loyal/{id:guid}")]
         public async Task<IActionResult> RemoveLoyalCustomer(Guid id)
         {
             var removed = await _loyaltyService.RemoveLoyalCustomerAsync(id);
-            if (!removed) return NotFound();
+            if (!removed) return NotFound(new { message = "Müşteri bulunamadı." });
+
             return NoContent();
         }
     }

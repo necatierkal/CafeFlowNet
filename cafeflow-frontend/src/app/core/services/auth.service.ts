@@ -1,8 +1,8 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, tap, catchError, throwError, BehaviorSubject } from 'rxjs';
+import { Observable, tap, catchError, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { AuthResponse, LoginRequest, User, UserRole } from '../models';
+import { AuthResponse, ChangePasswordRequest, LoginRequest, RegisterRequest, UpdateProfileRequest, User, UserRole } from '../models';
 
 const ACCESS_TOKEN_KEY = 'cf_access_token';
 const REFRESH_TOKEN_KEY = 'cf_refresh_token';
@@ -27,22 +27,63 @@ export class AuthService {
     );
   }
 
+  register(req: RegisterRequest): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${environment.apiUrl}/auth/register`, req).pipe(
+      tap(response => this.storeSession(response)),
+      catchError(err => throwError(() => err))
+    );
+  }
+
   logout(): void {
     const refreshToken = this.getRefreshToken();
     if (refreshToken) {
       // Best-effort revoke; don't block logout on the network call
-      this.http.post(`${environment.apiUrl}/auth/logout`, { refreshToken }).subscribe();
+      this.http.post(`${environment.apiUrl}/auth/logout`, { refreshToken }).subscribe({
+        error: () => {} // ignore network errors during logout
+      });
     }
     this.clearSession();
   }
 
   refreshToken(): Observable<AuthResponse> {
     const refreshToken = this.getRefreshToken();
+    if (!refreshToken) {
+      this.clearSession();
+      return throwError(() => new Error('No refresh token available'));
+    }
+
     return this.http.post<AuthResponse>(`${environment.apiUrl}/auth/refresh`, { refreshToken }).pipe(
       tap(response => this.storeSession(response)),
       catchError(err => {
         this.clearSession();
         return throwError(() => err);
+      })
+    );
+  }
+
+  getProfile(): Observable<User> {
+    return this.http.get<User>(`${environment.apiUrl}/auth/me`).pipe(
+      tap(user => {
+        sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+        this._currentUser.set(user);
+      })
+    );
+  }
+
+  updateProfile(dto: UpdateProfileRequest): Observable<User> {
+    return this.http.put<User>(`${environment.apiUrl}/auth/profile`, dto).pipe(
+      tap(user => {
+        sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+        this._currentUser.set(user);
+      })
+    );
+  }
+
+  changePassword(dto: ChangePasswordRequest): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${environment.apiUrl}/auth/change-password`, dto).pipe(
+      tap(() => {
+        // After password change, backend revokes refresh tokens; logout locally so user logs in with new password
+        this.clearSession();
       })
     );
   }
@@ -62,7 +103,7 @@ export class AuthService {
     this._currentUser.set(response.user);
   }
 
-  private clearSession(): void {
+  clearSession(): void {
     sessionStorage.removeItem(ACCESS_TOKEN_KEY);
     sessionStorage.removeItem(REFRESH_TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);
@@ -70,7 +111,13 @@ export class AuthService {
   }
 
   private loadStoredUser(): User | null {
-    const raw = sessionStorage.getItem(USER_KEY);
-    return raw ? JSON.parse(raw) as User : null;
+    try {
+      const raw = sessionStorage.getItem(USER_KEY);
+      return raw ? JSON.parse(raw) as User : null;
+    } catch {
+      // Corrupted sessionStorage JSON should never crash the app
+      sessionStorage.removeItem(USER_KEY);
+      return null;
+    }
   }
 }

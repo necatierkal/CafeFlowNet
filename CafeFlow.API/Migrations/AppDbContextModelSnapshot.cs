@@ -39,6 +39,9 @@ namespace CafeFlow.API.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -57,6 +60,7 @@ namespace CafeFlow.API.Migrations
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             DisplayOrder = 1,
                             IsActive = true,
+                            IsDeleted = false,
                             Name = "Starters"
                         },
                         new
@@ -65,6 +69,7 @@ namespace CafeFlow.API.Migrations
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             DisplayOrder = 2,
                             IsActive = true,
+                            IsDeleted = false,
                             Name = "Mains"
                         },
                         new
@@ -73,6 +78,7 @@ namespace CafeFlow.API.Migrations
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             DisplayOrder = 3,
                             IsActive = true,
+                            IsDeleted = false,
                             Name = "Desserts"
                         },
                         new
@@ -81,6 +87,7 @@ namespace CafeFlow.API.Migrations
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             DisplayOrder = 4,
                             IsActive = true,
+                            IsDeleted = false,
                             Name = "Drinks"
                         });
                 });
@@ -113,6 +120,9 @@ namespace CafeFlow.API.Migrations
                     b.Property<bool>("IsAvailable")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -139,6 +149,7 @@ namespace CafeFlow.API.Migrations
                             Description = "Ask your server",
                             DisplayOrder = 1,
                             IsAvailable = true,
+                            IsDeleted = false,
                             Name = "Soup of the Day",
                             Price = 6.50m,
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
@@ -151,6 +162,7 @@ namespace CafeFlow.API.Migrations
                             Description = "With fries and salad",
                             DisplayOrder = 1,
                             IsAvailable = true,
+                            IsDeleted = false,
                             Name = "Grilled Chicken Sandwich",
                             Price = 12.90m,
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
@@ -163,6 +175,7 @@ namespace CafeFlow.API.Migrations
                             Description = "Rich and gooey",
                             DisplayOrder = 1,
                             IsAvailable = true,
+                            IsDeleted = false,
                             Name = "Chocolate Cake",
                             Price = 5.90m,
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
@@ -175,6 +188,7 @@ namespace CafeFlow.API.Migrations
                             Description = "Double shot espresso",
                             DisplayOrder = 1,
                             IsAvailable = true,
+                            IsDeleted = false,
                             Name = "Flat White",
                             Price = 4.20m,
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
@@ -187,6 +201,13 @@ namespace CafeFlow.API.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -195,6 +216,10 @@ namespace CafeFlow.API.Migrations
 
                     b.Property<DateTime?>("EstimatedArrival")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("IdempotencyKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
@@ -216,6 +241,8 @@ namespace CafeFlow.API.Migrations
                     b.HasIndex("CreatedAt");
 
                     b.HasIndex("CustomerId");
+
+                    b.HasIndex("IdempotencyKey");
 
                     b.HasIndex("Status");
 
@@ -256,6 +283,49 @@ namespace CafeFlow.API.Migrations
                     b.ToTable("OrderItems");
                 });
 
+            modelBuilder.Entity("CafeFlow.API.Models.OrderStatusHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ChangedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid?>("ChangedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("FromStatus")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangedAt");
+
+                    b.HasIndex("OrderId");
+
+                    b.ToTable("OrderStatusHistories");
+                });
+
             modelBuilder.Entity("CafeFlow.API.Models.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -268,12 +338,25 @@ namespace CafeFlow.API.Migrations
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("ReasonRevoked")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ReplacedByTokenHash")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
                     b.Property<DateTime?>("RevokedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Token")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("TokenHash")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
@@ -286,6 +369,68 @@ namespace CafeFlow.API.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("RefreshTokens");
+                });
+
+            modelBuilder.Entity("CafeFlow.API.Models.RestaurantSetting", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsAcceptingOrders")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("MinimumOrderAmount")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("OpeningHours")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("RestaurantName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("RestaurantSettings");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Address = "Moda Caddesi No: 42, Kadıköy, İstanbul",
+                            Description = "Modern gurme lezzetler, taze çekilmiş nitelikli kahveler ve özel tatlılar.",
+                            Email = "iletisim@cafeflow.com",
+                            IsAcceptingOrders = true,
+                            MinimumOrderAmount = 0.00m,
+                            OpeningHours = "Hergün 08:30 - 23:30",
+                            PhoneNumber = "+90 (216) 555 0123",
+                            RestaurantName = "CafeFlow Restaurant & Cafe",
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        });
                 });
 
             modelBuilder.Entity("CafeFlow.API.Models.User", b =>
@@ -311,6 +456,12 @@ namespace CafeFlow.API.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastLoginAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("MustChangePassword")
                         .HasColumnType("bit");
 
                     b.Property<string>("PasswordHash")
@@ -343,6 +494,7 @@ namespace CafeFlow.API.Migrations
                             Email = "owner@cafeflow.com",
                             FullName = "Cafe Owner",
                             IsActive = true,
+                            MustChangePassword = false,
                             PasswordHash = "$2a$11$8K1p/a0dURXAm7QiTRqFW.gFKshSE0Pz1QqB0AzgZpZkPj/8/eUlW",
                             Role = "Admin"
                         });
@@ -389,6 +541,17 @@ namespace CafeFlow.API.Migrations
                     b.Navigation("Order");
                 });
 
+            modelBuilder.Entity("CafeFlow.API.Models.OrderStatusHistory", b =>
+                {
+                    b.HasOne("CafeFlow.API.Models.Order", "Order")
+                        .WithMany("StatusHistory")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("CafeFlow.API.Models.RefreshToken", b =>
                 {
                     b.HasOne("CafeFlow.API.Models.User", "User")
@@ -423,6 +586,8 @@ namespace CafeFlow.API.Migrations
             modelBuilder.Entity("CafeFlow.API.Models.Order", b =>
                 {
                     b.Navigation("OrderItems");
+
+                    b.Navigation("StatusHistory");
                 });
 
             modelBuilder.Entity("CafeFlow.API.Models.User", b =>

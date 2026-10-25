@@ -13,6 +13,8 @@ namespace CafeFlow.API.Data
         public DbSet<MenuItem> MenuItems => Set<MenuItem>();
         public DbSet<Order> Orders => Set<Order>();
         public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+        public DbSet<OrderStatusHistory> OrderStatusHistories => Set<OrderStatusHistory>();
+        public DbSet<RestaurantSetting> RestaurantSettings => Set<RestaurantSetting>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -75,6 +77,7 @@ namespace CafeFlow.API.Data
 
                 entity.HasIndex(o => o.Status);
                 entity.HasIndex(o => o.CreatedAt);
+                entity.HasIndex(o => o.IdempotencyKey);
             });
 
             // ── OrderItem ──
@@ -90,6 +93,32 @@ namespace CafeFlow.API.Data
                     .WithMany(mi => mi.OrderItems)
                     .HasForeignKey(oi => oi.MenuItemId)
                     .OnDelete(DeleteBehavior.NoAction);
+            });
+
+            // ── OrderStatusHistory ──
+            modelBuilder.Entity<OrderStatusHistory>(entity =>
+            {
+                entity.Property(h => h.FromStatus)
+                    .HasConversion<string>()
+                    .HasMaxLength(20);
+
+                entity.Property(h => h.ToStatus)
+                    .HasConversion<string>()
+                    .HasMaxLength(20);
+
+                entity.HasOne(h => h.Order)
+                    .WithMany(o => o.StatusHistory)
+                    .HasForeignKey(h => h.OrderId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(h => h.OrderId);
+                entity.HasIndex(h => h.ChangedAt);
+            });
+
+            // ── RestaurantSetting ──
+            modelBuilder.Entity<RestaurantSetting>(entity =>
+            {
+                entity.HasKey(s => s.Id);
             });
 
             // ── Seed data ──
@@ -125,6 +154,22 @@ namespace CafeFlow.API.Data
                 new MenuItem { Id = 2, CategoryId = 2, Name = "Grilled Chicken Sandwich", Description = "With fries and salad", Price = 12.90m, IsAvailable = true, DisplayOrder = 1, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                 new MenuItem { Id = 3, CategoryId = 3, Name = "Chocolate Cake", Description = "Rich and gooey", Price = 5.90m, IsAvailable = true, DisplayOrder = 1, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
                 new MenuItem { Id = 4, CategoryId = 4, Name = "Flat White", Description = "Double shot espresso", Price = 4.20m, IsAvailable = true, DisplayOrder = 1, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
+            );
+
+            modelBuilder.Entity<RestaurantSetting>().HasData(
+                new RestaurantSetting
+                {
+                    Id = 1,
+                    RestaurantName = "CafeFlow Restaurant & Cafe",
+                    Description = "Modern gurme lezzetler, taze çekilmiş nitelikli kahveler ve özel tatlılar.",
+                    Address = "Moda Caddesi No: 42, Kadıköy, İstanbul",
+                    PhoneNumber = "+90 (216) 555 0123",
+                    Email = "iletisim@cafeflow.com",
+                    OpeningHours = "Hergün 08:30 - 23:30",
+                    IsAcceptingOrders = true,
+                    MinimumOrderAmount = 0.00m,
+                    UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                }
             );
         }
     }

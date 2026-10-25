@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { User, CreateLoyalCustomerRequest } from '../models';
@@ -10,13 +10,23 @@ export class CustomerService {
 
   constructor(private http: HttpClient) {}
 
-  getLoyalCustomers(): Observable<User[]> {
-    return this.http.get<User[]>(`${this.baseUrl}/loyal`);
+  getLoyalCustomers(search?: string): Observable<User[]> {
+    let params = new HttpParams();
+    if (search) params = params.set('search', search);
+
+    return this.http.get<User[]>(`${this.baseUrl}/loyal`, { params });
   }
 
-  /** Admin adds a customer as "loyal" so they can log in and order remotely. */
+  getCustomerById(id: string): Observable<User> {
+    return this.http.get<User>(`${this.baseUrl}/loyal/${id}`);
+  }
+
   addLoyalCustomer(dto: CreateLoyalCustomerRequest): Observable<User> {
     return this.http.post<User>(`${this.baseUrl}/loyal`, dto);
+  }
+
+  toggleCustomerStatus(customerId: string, isActive: boolean): Observable<User> {
+    return this.http.put<User>(`${this.baseUrl}/loyal/${customerId}/status`, { isActive });
   }
 
   removeLoyalCustomer(customerId: string): Observable<void> {

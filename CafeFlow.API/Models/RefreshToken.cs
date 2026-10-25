@@ -8,8 +8,17 @@ namespace CafeFlow.API.Models
         [Key]
         public Guid Id { get; set; } = Guid.NewGuid();
 
-        [Required]
+        [Required, MaxLength(128)]
         public string Token { get; set; } = string.Empty;
+
+        [MaxLength(128)]
+        public string? TokenHash { get; set; }
+
+        [MaxLength(128)]
+        public string? ReplacedByTokenHash { get; set; }
+
+        [MaxLength(100)]
+        public string? ReasonRevoked { get; set; }
 
         public Guid UserId { get; set; }
 

@@ -27,6 +27,8 @@ namespace CafeFlow.API.Models
 
         public bool IsAvailable { get; set; } = true;
 
+        public bool IsDeleted { get; set; } = false;
+
         public int DisplayOrder { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

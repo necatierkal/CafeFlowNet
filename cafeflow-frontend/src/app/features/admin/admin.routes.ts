@@ -20,5 +20,10 @@ export const ADMIN_ROUTES: Routes = [
     path: 'customers',
     loadComponent: () => import('./customer-manager/customer-manager.component')
       .then(m => m.CustomerManagerComponent)
+  },
+  {
+    path: 'settings',
+    loadComponent: () => import('./settings-manager/settings-manager.component')
+      .then(m => m.SettingsManagerComponent)
   }
 ];

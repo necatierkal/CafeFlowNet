@@ -33,11 +33,20 @@ namespace CafeFlow.API.Models
         [MaxLength(500)]
         public string? Notes { get; set; }
 
+        [MaxLength(100)]
+        public string? IdempotencyKey { get; set; }
+
+        public DateTime? CancelledAt { get; set; }
+
+        [MaxLength(250)]
+        public string? CancellationReason { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation
         public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
+        public ICollection<OrderStatusHistory> StatusHistory { get; set; } = new List<OrderStatusHistory>();
     }
 }

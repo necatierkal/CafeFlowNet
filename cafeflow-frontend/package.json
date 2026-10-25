@@ -1,12 +1,13 @@
 {
   "name": "cafeflow-frontend",
   "version": "1.0.0",
+  "type": "module",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "node --experimental-strip-types --test tests/*.test.ts"
   },
   "private": true,
   "dependencies": {

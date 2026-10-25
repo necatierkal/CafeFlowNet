@@ -4,75 +4,153 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CartService } from '../../../core/services/cart.service';
 import { OrderService } from '../../../core/services/order.service';
+import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
   selector: 'app-cart',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
-    <div class="page">
-      <h1>Your order</h1>
-
-      @if (cartService.lines().length === 0) {
-        <p class="empty">Your cart is empty. <a routerLink="/my">Browse the menu →</a></p>
-      } @else {
-        @for (line of cartService.lines(); track line.menuItem.id) {
-          <div class="line">
-            <div class="line-info">
-              <strong>{{ line.menuItem.name }}</strong>
-              <span>{{ line.menuItem.price | number:'1.2-2' }} each</span>
-            </div>
-            <div class="qty-controls">
-              <button (click)="cartService.setQuantity(line.menuItem.id, line.quantity - 1)">−</button>
-              <span>{{ line.quantity }}</span>
-              <button (click)="cartService.setQuantity(line.menuItem.id, line.quantity + 1)">+</button>
-            </div>
-            <span class="line-total">{{ line.menuItem.price * line.quantity | number:'1.2-2' }}</span>
+    <div class="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans pb-24 transition-colors">
+      
+      <!-- Top Bar -->
+      <div class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <a routerLink="/my" class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors">
+              ←
+            </a>
+            <h1 class="text-xl font-black text-slate-900 dark:text-white">Sipariş Sepetim</h1>
           </div>
-        }
-
-        <div class="total-row">
-          <span>Total</span>
-          <strong>{{ cartService.total() | number:'1.2-2' }}</strong>
+          @if (cartService.lines().length > 0) {
+            <button (click)="clearCart()" class="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline">
+              Sepeti Temizle
+            </button>
+          }
         </div>
+      </div>
 
-        <label>Estimated arrival time (optional)</label>
-        <input type="time" [(ngModel)]="arrivalTime" />
+      <div class="max-w-3xl mx-auto px-4 sm:px-6 pt-6">
+        
+        @if (cartService.lines().length === 0) {
+          <div class="text-center py-24 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <span class="text-6xl mb-4 block">🛒</span>
+            <h3 class="text-xl font-bold text-slate-800 dark:text-slate-200 mb-2">Sepetiniz Boş</h3>
+            <p class="text-slate-500 dark:text-slate-400 max-w-sm mx-auto text-sm mb-6">
+              Henüz sepetinize lezzetli bir ürün eklemediniz. Menümüzü inceleyerek hemen sipariş oluşturabilirsiniz.
+            </p>
+            <a routerLink="/my" 
+               class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md transition-all">
+              <span>Menüyü İncele</span>
+              <span>→</span>
+            </a>
+          </div>
+        } @else {
+          
+          <!-- Cart Items Card -->
+          <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 mb-6">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white mb-4 flex items-center justify-between">
+              <span>Seçilen Lezzetler ({{ cartService.itemCount() }} adet)</span>
+            </h2>
 
-        <label>Notes for the kitchen (optional)</label>
-        <textarea [(ngModel)]="notes" rows="2" placeholder="e.g. no onions, extra napkins"></textarea>
+            <div class="divide-y divide-slate-100 dark:divide-slate-800">
+              @for (line of cartService.lines(); track line.menuItem.id) {
+                <div class="py-4 flex items-center justify-between gap-4">
+                  <div class="flex-grow">
+                    <h3 class="font-bold text-sm text-slate-900 dark:text-white">{{ line.menuItem.name }}</h3>
+                    <span class="text-xs text-slate-400">{{ line.menuItem.price | number:'1.2-2' }} ₺ / adet</span>
+                  </div>
 
-        @if (errorMessage()) {
-          <p class="error">{{ errorMessage() }}</p>
+                  <!-- Qty controls -->
+                  <div class="flex items-center gap-2 border border-slate-200 dark:border-slate-700 rounded-xl p-1 bg-slate-50 dark:bg-slate-800">
+                    <button (click)="cartService.setQuantity(line.menuItem.id, line.quantity - 1)"
+                            class="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white dark:hover:bg-slate-700 font-bold text-slate-700 dark:text-slate-300 transition-colors">
+                      −
+                    </button>
+                    <span class="w-8 text-center font-bold text-xs">{{ line.quantity }}</span>
+                    <button (click)="cartService.setQuantity(line.menuItem.id, line.quantity + 1)"
+                            class="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white dark:hover:bg-slate-700 font-bold text-slate-700 dark:text-slate-300 transition-colors">
+                      +
+                    </button>
+                  </div>
+
+                  <!-- Line total -->
+                  <div class="text-right min-w-[70px]">
+                    <span class="font-black text-sm text-slate-900 dark:text-white">
+                      {{ (line.menuItem.price * line.quantity) | number:'1.2-2' }} ₺
+                    </span>
+                  </div>
+
+                  <!-- Delete -->
+                  <button (click)="cartService.removeItem(line.menuItem.id)" class="text-slate-400 hover:text-rose-500 text-xs p-1">
+                    ✕
+                  </button>
+                </div>
+              }
+            </div>
+
+            <!-- Total summary -->
+            <div class="mt-6 pt-4 border-t-2 border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              <div>
+                <span class="text-xs text-slate-400 block">Ödenecek Toplam Tutar</span>
+                <span class="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">Tüm fiyatlar ve KDV dahil</span>
+              </div>
+              <div class="text-2xl font-black text-slate-900 dark:text-white">
+                {{ cartService.total() | number:'1.2-2' }} <span class="text-sm font-medium text-slate-400">₺</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Order Details Card -->
+          <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 mb-6 space-y-4">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">Sipariş Notu & Varış Süresi</h3>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                Tahmini Varış Saatiniz (İsteğe bağlı)
+              </label>
+              <input type="time" 
+                     [(ngModel)]="arrivalTime"
+                     class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <span class="text-[11px] text-slate-400 block mt-1">Siparişinizin tam vaktinde sıcak ve hazır olması için varış saatinizi belirtebilirsiniz.</span>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                Mutfak ve Barista Notu (İsteğe bağlı)
+              </label>
+              <textarea [(ngModel)]="notes" 
+                        rows="2" 
+                        placeholder="Örn: Kahvem lütfen az şekerli olsun, peçete ekleyebilir misiniz?"
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-400"></textarea>
+            </div>
+          </div>
+
+          @if (errorMessage()) {
+            <div class="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs mb-6">
+              {{ errorMessage() }}
+            </div>
+          }
+
+          <!-- Place Order Button -->
+          <button (click)="placeOrder()" 
+                  [disabled]="placing()"
+                  class="w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white font-black text-base shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center gap-3">
+            @if (placing()) {
+              <span class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+              <span>Siparişiniz İletiliyor...</span>
+            } @else {
+              <span>Siparişi Onayla & Gönder</span>
+              <span>•</span>
+              <span>{{ cartService.total() | number:'1.2-2' }} ₺</span>
+            }
+          </button>
         }
 
-        <button class="place-order-btn" (click)="placeOrder()" [disabled]="placing()">
-          {{ placing() ? 'Placing order…' : 'Place order' }}
-        </button>
-      }
+      </div>
+
     </div>
-  `,
-  styles: [`
-    .page { padding:1.5rem; max-width:560px; margin:0 auto; }
-    h1 { margin:0 0 1rem; }
-    .empty { color:#777; }
-    .line { display:flex; align-items:center; gap:0.75rem; padding:0.6rem 0; border-bottom:1px solid #f0f0f0; }
-    .line-info { flex:1; display:flex; flex-direction:column; }
-    .line-info span { font-size:0.8rem; color:#999; }
-    .qty-controls { display:flex; align-items:center; gap:0.5rem; }
-    .qty-controls button { width:26px; height:26px; border:1px solid #ccc; background:white;
-      border-radius:6px; cursor:pointer; }
-    .line-total { font-weight:600; min-width:60px; text-align:right; }
-    .total-row { display:flex; justify-content:space-between; padding:0.75rem 0; margin-top:0.5rem;
-      border-top:2px solid #1e5fa8; font-size:1.1rem; }
-    label { display:block; margin-top:1rem; font-size:0.85rem; font-weight:500; }
-    input, textarea { width:100%; padding:0.55rem; border:1px solid #ccc; border-radius:6px;
-      margin-top:0.3rem; font-family:inherit; }
-    .error { color:#c0392b; font-size:0.85rem; margin-top:0.75rem; }
-    .place-order-btn { width:100%; margin-top:1.25rem; padding:0.75rem; background:#1e5fa8;
-      color:white; border:none; border-radius:8px; font-weight:500; cursor:pointer; font-size:1rem; }
-    .place-order-btn:disabled { opacity:0.6; cursor:not-allowed; }
-  `]
+  `
 })
 export class CartComponent {
   readonly placing = signal(false);
@@ -84,10 +162,19 @@ export class CartComponent {
   constructor(
     public cartService: CartService,
     private orderService: OrderService,
-    private router: Router
+    private router: Router,
+    private toastService: ToastService
   ) {}
 
+  clearCart(): void {
+    if (confirm('Sepetinizdeki tüm ürünleri temizlemek istediğinize emin misiniz?')) {
+      this.cartService.clear();
+      this.toastService.info('Sepet Temizlendi');
+    }
+  }
+
   placeOrder(): void {
+    if (this.cartService.lines().length === 0) return;
     this.placing.set(true);
     this.errorMessage.set(null);
 
@@ -99,19 +186,26 @@ export class CartComponent {
       estimatedArrival = arrival.toISOString();
     }
 
+    // Unique idempotency key to prevent double submissions
+    const idempotencyKey = 'cf_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+
     this.orderService.placeOrder({
       items: this.cartService.lines().map(l => ({ menuItemId: l.menuItem.id, quantity: l.quantity })),
       estimatedArrival,
-      notes: this.notes || undefined
+      notes: this.notes.trim() || undefined,
+      idempotencyKey
     }).subscribe({
       next: order => {
         this.cartService.clear();
         this.placing.set(false);
+        this.toastService.success('Sipariş Alındı! 🎉', 'Siparişiniz mutfağa iletildi.');
         this.router.navigate(['/my/orders', order.id]);
       },
-      error: () => {
+      error: err => {
         this.placing.set(false);
-        this.errorMessage.set('Could not place order — one or more items may no longer be available.');
+        const msg = err.error?.message || 'Sipariş oluşturulamadı — menüdeki ürünlerden biri artık mevcut olmayabilir.';
+        this.errorMessage.set(msg);
+        this.toastService.error('Sipariş Başarısız', msg);
       }
     });
   }

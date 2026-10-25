@@ -25,16 +25,16 @@ namespace CafeFlow.API.DTOs
 
     public class CreateMenuItemDto
     {
-        [Required]
+        [Required(ErrorMessage = "Kategori seçilmelidir.")]
         public int CategoryId { get; set; }
 
-        [Required, MaxLength(200)]
+        [Required(ErrorMessage = "Ürün adı zorunludur."), MaxLength(200)]
         public string Name { get; set; } = string.Empty;
 
         [MaxLength(1000)]
         public string? Description { get; set; }
 
-        [Required, Range(0.01, 100000)]
+        [Required(ErrorMessage = "Fiyat zorunludur."), Range(0.01, 100000, ErrorMessage = "Fiyat 0.01 ile 100,000 arasında olmalıdır.")]
         public decimal Price { get; set; }
 
         [MaxLength(500)]
@@ -47,13 +47,15 @@ namespace CafeFlow.API.DTOs
 
     public class UpdateMenuItemDto
     {
+        public int? CategoryId { get; set; }
+
         [MaxLength(200)]
         public string? Name { get; set; }
 
         [MaxLength(1000)]
         public string? Description { get; set; }
 
-        [Range(0.01, 100000)]
+        [Range(0.01, 100000, ErrorMessage = "Fiyat 0.01 ile 100,000 arasında olmalıdır.")]
         public decimal? Price { get; set; }
 
         [MaxLength(500)]
@@ -66,9 +68,19 @@ namespace CafeFlow.API.DTOs
 
     public class CreateMenuCategoryDto
     {
-        [Required, MaxLength(100)]
+        [Required(ErrorMessage = "Kategori adı zorunludur."), MaxLength(100)]
         public string Name { get; set; } = string.Empty;
 
         public int DisplayOrder { get; set; }
+    }
+
+    public class UpdateMenuCategoryDto
+    {
+        [MaxLength(100)]
+        public string? Name { get; set; }
+
+        public int? DisplayOrder { get; set; }
+
+        public bool? IsActive { get; set; }
     }
 }

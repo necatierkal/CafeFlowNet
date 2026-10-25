@@ -1,189 +1,492 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { MenuService } from '../../../core/services/menu.service';
+import { ToastService } from '../../../core/services/toast.service';
+import { ThemeService } from '../../../core/services/theme.service';
 import { MenuCategory, MenuItem } from '../../../core/models';
 
 @Component({
   selector: 'app-menu-manager',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   template: `
-    <div class="page">
-      <h1>Menu manager</h1>
-      <p class="hint">Edit a price and press Enter or click away — it saves instantly and goes live on the public menu.</p>
+    <div class="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans pb-24 transition-colors">
+      
+      <!-- Top Navigation Header -->
+      <header class="sticky top-0 z-40 bg-white/85 dark:bg-slate-900/85 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex justify-between items-center gap-4">
+          
+          <div class="flex items-center gap-3">
+            <a routerLink="/admin" class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors">
+              ←
+            </a>
+            <div>
+              <span class="text-lg font-black text-slate-900 dark:text-white leading-none block">Menü & Fiyat Masası</span>
+              <span class="text-xs text-slate-400">Ürün, kategori ve anlık fiyat yönetimi</span>
+            </div>
+          </div>
 
-      @if (savedItemId()) {
-        <div class="toast">Saved ✓</div>
-      }
+          <!-- Admin Nav Menu -->
+          <nav class="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl">
+            <a routerLink="/admin" class="px-3 py-1 rounded-xl font-medium text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
+              📈 Genel Bakış
+            </a>
+            <a routerLink="/admin/orders" class="px-3 py-1 rounded-xl font-medium text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
+              🔔 Canlı Siparişler
+            </a>
+            <a routerLink="/admin/menu" class="px-3 py-1 rounded-xl font-bold text-xs bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm">
+              🍽️ Menü & Fiyatlar
+            </a>
+            <a routerLink="/admin/customers" class="px-3 py-1 rounded-xl font-medium text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
+              👥 Müşteriler
+            </a>
+            <a routerLink="/admin/settings" class="px-3 py-1 rounded-xl font-medium text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
+              ⚙️ Ayarlar
+            </a>
+          </nav>
 
-      @for (category of categories(); track category.id) {
-        <section class="category">
-          <h2>{{ category.name }}</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Price</th>
-                <th>Available</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (item of category.items; track item.id) {
-                <tr [class.unavailable]="!item.isAvailable">
-                  <td>
-                    <strong>{{ item.name }}</strong>
-                    @if (item.description) {
-                      <div class="desc">{{ item.description }}</div>
-                    }
-                  </td>
-                  <td>
-                    <div class="price-edit">
-                      <span>$</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        [value]="item.price"
-                        (change)="updatePrice(item, $event)"
-                      />
-                    </div>
-                  </td>
-                  <td>
-                    <label class="switch">
-                      <input
-                        type="checkbox"
-                        [checked]="item.isAvailable"
-                        (change)="toggleAvailability(item)"
-                      />
-                      <span class="slider"></span>
-                    </label>
-                  </td>
-                  <td>
-                    <button class="delete-btn" (click)="deleteItem(item)">Delete</button>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </section>
-      }
+          <div class="flex items-center gap-2">
+            <button (click)="openAddCategoryModal()" class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 transition-colors">
+              + Yeni Kategori
+            </button>
+            <button (click)="openAddItemModal()" class="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm transition-colors">
+              + Yeni Ürün Ekle
+            </button>
+          </div>
+        </div>
+      </header>
 
-      <button class="add-btn" (click)="showAddForm.set(!showAddForm())">
-        {{ showAddForm() ? 'Cancel' : '+ Add new item' }}
-      </button>
+      <!-- Main Container -->
+      <main class="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
+        
+        <!-- Search bar -->
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+          <div class="text-xs text-slate-500">
+            💡 Fiyat kutucuğuna yeni tutar yazıp <strong>Enter</strong>'a bastığınızda fiyat anında genel menüde güncellenir.
+          </div>
 
-      @if (showAddForm()) {
-        <div class="add-form">
-          <select [(ngModel)]="newItem.categoryId">
-            @for (category of categories(); track category.id) {
-              <option [value]="category.id">{{ category.name }}</option>
+          <div class="relative w-full sm:w-72 shrink-0">
+            <span class="absolute left-3.5 top-2.5 text-slate-400 text-xs">🔍</span>
+            <input type="text"
+                   [(ngModel)]="searchQuery"
+                   placeholder="Ürün adı ara..."
+                   class="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs focus:ring-2 focus:ring-indigo-500 outline-none" />
+          </div>
+        </div>
+
+        @if (loading()) {
+          <div class="flex flex-col items-center justify-center py-24">
+            <div class="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+            <p class="text-xs text-slate-500">Menü yükleniyor...</p>
+          </div>
+        } 
+        
+        @else {
+          <div class="space-y-8">
+            @for (category of filteredCategories(); track category.id) {
+              <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-800">
+                
+                <!-- Category Header -->
+                <div class="flex justify-between items-center pb-4 mb-4 border-b border-slate-100 dark:border-slate-800">
+                  <div class="flex items-center gap-3">
+                    <h2 class="text-lg font-black text-slate-900 dark:text-white">{{ category.name }}</h2>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500">
+                      {{ category.items.length }} ürün
+                    </span>
+                  </div>
+
+                  <div class="flex items-center gap-2">
+                    <button (click)="openEditCategoryModal(category)" class="text-xs text-slate-400 hover:text-indigo-600 font-semibold p-1">
+                      ✏️ Düzenle
+                    </button>
+                    <button (click)="deleteCategory(category)" class="text-xs text-slate-400 hover:text-rose-600 font-semibold p-1">
+                      🗑️ Sil
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Items Table -->
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left text-xs">
+                    <thead>
+                      <tr class="text-slate-400 border-b border-slate-100 dark:border-slate-800">
+                        <th class="py-2.5 px-3 font-bold">Ürün</th>
+                        <th class="py-2.5 px-3 font-bold">Fiyat (₺)</th>
+                        <th class="py-2.5 px-3 font-bold text-center">Satışta</th>
+                        <th class="py-2.5 px-3 font-bold text-right">İşlemler</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
+                      @for (item of category.items; track item.id) {
+                        <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors" [class.opacity-50]="!item.isAvailable">
+                          
+                          <!-- Name & Description -->
+                          <td class="py-3 px-3">
+                            <div class="flex items-center gap-3">
+                              @if (item.imageUrl) {
+                                <img [src]="item.imageUrl" [alt]="item.name" class="w-10 h-10 rounded-xl object-cover shrink-0" />
+                              } @else {
+                                <div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-lg shrink-0">☕</div>
+                              }
+                              <div>
+                                <strong class="text-slate-900 dark:text-white block">{{ item.name }}</strong>
+                                @if (item.description) {
+                                  <span class="text-slate-400 text-[11px] line-clamp-1">{{ item.description }}</span>
+                                }
+                              </div>
+                            </div>
+                          </td>
+
+                          <!-- Price Quick Edit -->
+                          <td class="py-3 px-3">
+                            <div class="inline-flex items-center gap-1 bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded-xl border border-slate-200 dark:border-slate-700">
+                              <input type="number" 
+                                     step="0.5" 
+                                     min="0"
+                                     [value]="item.price"
+                                     (change)="updatePrice(item, $event)"
+                                     class="w-20 bg-transparent text-xs font-bold text-slate-900 dark:text-white outline-none" />
+                              <span class="text-slate-400 font-bold">₺</span>
+                            </div>
+                          </td>
+
+                          <!-- Availability Toggle -->
+                          <td class="py-3 px-3 text-center">
+                            <button (click)="toggleAvailability(item)" 
+                                    class="px-2.5 py-1 rounded-full text-[10px] font-bold transition-all"
+                                    [ngClass]="item.isAvailable ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'">
+                              {{ item.isAvailable ? 'Satışta' : 'Tükendi' }}
+                            </button>
+                          </td>
+
+                          <!-- Actions -->
+                          <td class="py-3 px-3 text-right">
+                            <div class="flex items-center justify-end gap-2">
+                              <button (click)="openEditItemModal(item)" class="p-1 text-slate-400 hover:text-indigo-600 font-bold">
+                                ✏️
+                              </button>
+                              <button (click)="deleteItem(item)" class="p-1 text-slate-400 hover:text-rose-600 font-bold">
+                                🗑️
+                              </button>
+                            </div>
+                          </td>
+
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+
+              </div>
             }
-          </select>
-          <input type="text" placeholder="Item name" [(ngModel)]="newItem.name" />
-          <input type="text" placeholder="Description (optional)" [(ngModel)]="newItem.description" />
-          <input type="number" step="0.01" placeholder="Price" [(ngModel)]="newItem.price" />
-          <button (click)="addItem()" [disabled]="!newItem.name || !newItem.price">Add item</button>
+          </div>
+        }
+
+      </main>
+
+      <!-- Category Modal -->
+      @if (showCategoryModal()) {
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div (click)="$event.stopPropagation()" class="bg-white dark:bg-slate-900 rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800">
+            <h3 class="text-lg font-black text-slate-900 dark:text-white mb-4">
+              {{ editingCategoryId ? 'Kategori Düzenle' : 'Yeni Kategori Ekle' }}
+            </h3>
+
+            <div class="space-y-3 mb-5">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Kategori Adı</label>
+                <input type="text" [(ngModel)]="categoryName" placeholder="Örn: Tatlılar, Sıcak Kahveler"
+                       class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Sıralama Sırası</label>
+                <input type="number" [(ngModel)]="categoryOrder"
+                       class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+            </div>
+
+            <div class="flex gap-2">
+              <button (click)="showCategoryModal.set(false)" class="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-xs">Vazgeç</button>
+              <button (click)="saveCategory()" [disabled]="!categoryName.trim()" class="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs disabled:opacity-50">Kaydet</button>
+            </div>
+          </div>
         </div>
       }
+
+      <!-- Item Modal -->
+      @if (showItemModal()) {
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div (click)="$event.stopPropagation()" class="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-lg font-black text-slate-900 dark:text-white mb-4">
+              {{ editingItemId ? 'Ürün Düzenle' : 'Yeni Menü Ürünü Ekle' }}
+            </h3>
+
+            <div class="space-y-3 mb-6">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Kategori</label>
+                <select [(ngModel)]="itemForm.categoryId" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white outline-none">
+                  @for (c of categories(); track c.id) {
+                    <option [value]="c.id">{{ c.name }}</option>
+                  }
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Ürün Adı</label>
+                <input type="text" [(ngModel)]="itemForm.name" placeholder="Örn: San Sebastian Cheesecake"
+                       class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Fiyat (₺)</label>
+                <input type="number" step="0.5" [(ngModel)]="itemForm.price" placeholder="0.00"
+                       class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Açıklama</label>
+                <textarea [(ngModel)]="itemForm.description" rows="2" placeholder="Ürün içeriği, malzemeler..."
+                          class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Görsel URL (İsteğe bağlı)</label>
+                <input type="url" [(ngModel)]="itemForm.imageUrl" placeholder="https://..."
+                       class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+
+              <div class="flex items-center gap-2 pt-1">
+                <input type="checkbox" id="itemAvailable" [(ngModel)]="itemForm.isAvailable" class="rounded text-indigo-600" />
+                <label for="itemAvailable" class="text-xs font-bold cursor-pointer">Satışta Açık (Müşteriler sipariş verebilir)</label>
+              </div>
+            </div>
+
+            <div class="flex gap-2">
+              <button (click)="showItemModal.set(false)" class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-xs">Vazgeç</button>
+              <button (click)="saveItem()" [disabled]="!itemForm.name.trim() || itemForm.price <= 0" class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs disabled:opacity-50">Kaydet</button>
+            </div>
+          </div>
+        </div>
+      }
+
     </div>
-  `,
-  styles: [`
-    .page { padding:1.5rem; max-width:900px; }
-    h1 { margin:0 0 0.25rem; }
-    .hint { color:#777; font-size:0.9rem; margin:0 0 1rem; }
-    .toast { position:fixed; top:1rem; right:1rem; background:#1e7d4f; color:white;
-      padding:0.5rem 1rem; border-radius:8px; font-size:0.9rem; }
-    .category { margin-bottom:1.5rem; }
-    .category h2 { font-size:1.1rem; margin:0 0 0.5rem; }
-    table { width:100%; border-collapse:collapse; }
-    th { text-align:left; font-size:0.8rem; color:#888; padding:0.4rem; border-bottom:1px solid #eee; }
-    td { padding:0.5rem 0.4rem; border-bottom:1px solid #f3f3f3; vertical-align:middle; }
-    tr.unavailable td { opacity:0.45; }
-    .desc { font-size:0.8rem; color:#999; }
-    .price-edit { display:flex; align-items:center; gap:0.25rem; }
-    .price-edit input { width:80px; padding:0.35rem; border:1px solid #ccc; border-radius:6px; }
-    .switch { position:relative; display:inline-block; width:38px; height:22px; }
-    .switch input { opacity:0; width:0; height:0; }
-    .slider { position:absolute; inset:0; background:#ccc; border-radius:22px; cursor:pointer; transition:0.2s; }
-    .slider::before { content:""; position:absolute; width:16px; height:16px; left:3px; top:3px;
-      background:white; border-radius:50%; transition:0.2s; }
-    .switch input:checked + .slider { background:#1e7d4f; }
-    .switch input:checked + .slider::before { transform:translateX(16px); }
-    .delete-btn { color:#c0392b; background:none; border:none; cursor:pointer; font-size:0.85rem; }
-    .add-btn { margin-top:1rem; padding:0.6rem 1rem; border-radius:8px; border:1px solid #1e5fa8;
-      background:white; color:#1e5fa8; font-weight:500; cursor:pointer; }
-    .add-form { display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:1rem; padding:1rem;
-      background:#fafafa; border-radius:10px; }
-    .add-form input, .add-form select { padding:0.5rem; border:1px solid #ccc; border-radius:6px; }
-    .add-form button { padding:0.5rem 1rem; background:#1e5fa8; color:white; border:none;
-      border-radius:6px; cursor:pointer; }
-  `]
+  `
 })
 export class MenuManagerComponent implements OnInit {
   readonly categories = signal<MenuCategory[]>([]);
-  readonly savedItemId = signal<number | null>(null);
-  readonly showAddForm = signal(false);
+  readonly loading = signal(true);
+  readonly showCategoryModal = signal(false);
+  readonly showItemModal = signal(false);
 
-  newItem = { categoryId: 0, name: '', description: '', price: null as number | null };
+  editingCategoryId: number | null = null;
+  categoryName = '';
+  categoryOrder = 1;
 
-  constructor(private menuService: MenuService) {}
+  editingItemId: number | null = null;
+  itemForm = {
+    categoryId: 0,
+    name: '',
+    description: '',
+    price: 0,
+    imageUrl: '',
+    isAvailable: true
+  };
+
+  searchQuery = '';
+
+  filteredCategories = computed(() => {
+    const cats = this.categories();
+    const query = this.searchQuery.trim().toLowerCase();
+    if (!query) return cats;
+
+    return cats.map(c => ({
+      ...c,
+      items: c.items.filter(i => i.name.toLowerCase().includes(query) || (i.description && i.description.toLowerCase().includes(query)))
+    })).filter(c => c.items.length > 0);
+  });
+
+  constructor(
+    private menuService: MenuService,
+    private toastService: ToastService,
+    public themeService: ThemeService
+  ) {}
 
   ngOnInit(): void {
     this.loadMenu();
   }
 
   loadMenu(): void {
-    this.menuService.getMenuForAdmin().subscribe(categories => {
-      this.categories.set(categories);
-      if (categories.length && !this.newItem.categoryId) {
-        this.newItem.categoryId = categories[0].id;
-      }
+    this.loading.set(true);
+    this.menuService.getMenuForAdmin().subscribe({
+      next: cats => {
+        this.categories.set(cats);
+        this.loading.set(false);
+        if (cats.length && !this.itemForm.categoryId) {
+          this.itemForm.categoryId = cats[0].id;
+        }
+      },
+      error: () => this.loading.set(false)
     });
   }
 
   updatePrice(item: MenuItem, event: Event): void {
-    const value = parseFloat((event.target as HTMLInputElement).value);
-    if (isNaN(value) || value <= 0) return;
+    const val = parseFloat((event.target as HTMLInputElement).value);
+    if (isNaN(val) || val <= 0) return;
 
-    this.menuService.updateItem(item.id, { price: value }).subscribe(updated => {
-      item.price = updated.price;
-      this.flashSaved(item.id);
+    this.menuService.updateItem(item.id, { price: val }).subscribe({
+      next: updated => {
+        item.price = updated.price;
+        this.toastService.success('Fiyat Güncellendi', `${item.name}: ${item.price} ₺`);
+      },
+      error: err => {
+        this.toastService.error('Hata', err.error?.message || 'Fiyat güncellenemedi.');
+      }
     });
   }
 
   toggleAvailability(item: MenuItem): void {
-    this.menuService.toggleAvailability(item).subscribe(updated => {
-      item.isAvailable = updated.isAvailable;
-      this.flashSaved(item.id);
+    this.menuService.toggleAvailability(item).subscribe({
+      next: updated => {
+        item.isAvailable = updated.isAvailable;
+        this.toastService.info('Durum Güncellendi', `${item.name} durumu: ${item.isAvailable ? 'Satışta' : 'Tükendi'}`);
+      },
+      error: err => this.toastService.error('Hata', err.error?.message || 'Durum değiştirilemedi.')
     });
   }
 
   deleteItem(item: MenuItem): void {
-    if (!confirm(`Delete "${item.name}"? This cannot be undone.`)) return;
-    this.menuService.deleteItem(item.id).subscribe(() => this.loadMenu());
-  }
+    if (!confirm(`"${item.name}" ürününü menüden kaldırmak istediğinize emin misiniz? (Geçmiş siparişlerdeki verisi korunacaktır)`)) return;
 
-  addItem(): void {
-    if (!this.newItem.name || !this.newItem.price) return;
-
-    this.menuService.createItem({
-      categoryId: this.newItem.categoryId,
-      name: this.newItem.name,
-      description: this.newItem.description || undefined,
-      price: this.newItem.price,
-      isAvailable: true,
-      displayOrder: 0
-    }).subscribe(() => {
-      this.newItem = { categoryId: this.newItem.categoryId, name: '', description: '', price: null };
-      this.showAddForm.set(false);
-      this.loadMenu();
+    this.menuService.deleteItem(item.id).subscribe({
+      next: () => {
+        this.toastService.success('Ürün Kaldırıldı', `${item.name} menüden kaldırıldı.`);
+        this.loadMenu();
+      },
+      error: () => this.toastService.error('Hata', 'Ürün silinemedi.')
     });
   }
 
-  private flashSaved(itemId: number): void {
-    this.savedItemId.set(itemId);
-    setTimeout(() => this.savedItemId.set(null), 1500);
+  openAddCategoryModal(): void {
+    this.editingCategoryId = null;
+    this.categoryName = '';
+    this.categoryOrder = this.categories().length + 1;
+    this.showCategoryModal.set(true);
+  }
+
+  openEditCategoryModal(cat: MenuCategory): void {
+    this.editingCategoryId = cat.id;
+    this.categoryName = cat.name;
+    this.categoryOrder = cat.displayOrder;
+    this.showCategoryModal.set(true);
+  }
+
+  saveCategory(): void {
+    if (!this.categoryName.trim()) return;
+
+    if (this.editingCategoryId) {
+      this.menuService.updateCategory(this.editingCategoryId, {
+        name: this.categoryName.trim(),
+        displayOrder: this.categoryOrder
+      }).subscribe({
+        next: () => {
+          this.toastService.success('Kategori Güncellendi');
+          this.showCategoryModal.set(false);
+          this.loadMenu();
+        },
+        error: () => this.toastService.error('Hata', 'Kategori güncellenemedi.')
+      });
+    } else {
+      this.menuService.createCategory({
+        name: this.categoryName.trim(),
+        displayOrder: this.categoryOrder
+      }).subscribe({
+        next: () => {
+          this.toastService.success('Kategori Eklendi');
+          this.showCategoryModal.set(false);
+          this.loadMenu();
+        },
+        error: () => this.toastService.error('Hata', 'Kategori eklenemedi.')
+      });
+    }
+  }
+
+  deleteCategory(cat: MenuCategory): void {
+    if (!confirm(`"${cat.name}" kategorisini ve altındaki tüm ürünleri kaldırmak istediğinize emin misiniz?`)) return;
+
+    this.menuService.deleteCategory(cat.id).subscribe({
+      next: () => {
+        this.toastService.success('Kategori Kaldırıldı');
+        this.loadMenu();
+      },
+      error: () => this.toastService.error('Hata', 'Kategori silinemedi.')
+    });
+  }
+
+  openAddItemModal(): void {
+    this.editingItemId = null;
+    const cats = this.categories();
+    this.itemForm = {
+      categoryId: cats.length > 0 ? cats[0].id : 0,
+      name: '',
+      description: '',
+      price: 0,
+      imageUrl: '',
+      isAvailable: true
+    };
+    this.showItemModal.set(true);
+  }
+
+  openEditItemModal(item: MenuItem): void {
+    this.editingItemId = item.id;
+    this.itemForm = {
+      categoryId: item.categoryId,
+      name: item.name,
+      description: item.description || '',
+      price: item.price,
+      imageUrl: item.imageUrl || '',
+      isAvailable: item.isAvailable
+    };
+    this.showItemModal.set(true);
+  }
+
+  saveItem(): void {
+    if (!this.itemForm.name.trim() || this.itemForm.price <= 0) return;
+
+    if (this.editingItemId) {
+      this.menuService.updateItem(this.editingItemId, {
+        categoryId: this.itemForm.categoryId,
+        name: this.itemForm.name.trim(),
+        description: this.itemForm.description.trim() || undefined,
+        price: this.itemForm.price,
+        imageUrl: this.itemForm.imageUrl.trim() || undefined,
+        isAvailable: this.itemForm.isAvailable
+      }).subscribe({
+        next: () => {
+          this.toastService.success('Ürün Güncellendi');
+          this.showItemModal.set(false);
+          this.loadMenu();
+        },
+        error: err => this.toastService.error('Hata', err.error?.message || 'Ürün kaydedilemedi.')
+      });
+    } else {
+      this.menuService.createItem({
+        categoryId: this.itemForm.categoryId,
+        name: this.itemForm.name.trim(),
+        description: this.itemForm.description.trim() || undefined,
+        price: this.itemForm.price,
+        imageUrl: this.itemForm.imageUrl.trim() || undefined,
+        isAvailable: this.itemForm.isAvailable,
+        displayOrder: 0
+      }).subscribe({
+        next: () => {
+          this.toastService.success('Ürün Eklendi');
+          this.showItemModal.set(false);
+          this.loadMenu();
+        },
+        error: err => this.toastService.error('Hata', err.error?.message || 'Ürün eklenemedi.')
+      });
+    }
   }
 }
